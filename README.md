@@ -78,3 +78,7 @@ Detailed upgrade instructions are listed in [Upgrading NodeBB](https://docs.node
 NodeBB is licensed under the **GNU General Public License v3 (GPL-3)** (http://www.gnu.org/copyleft/gpl.html).
 
 Interested in a sublicense agreement for use of NodeBB in a non-free/restrictive environment? Contact us at sales@nodebb.org.
+
+## If locked in a login loop
+
+Try: forum.indiloop.com/login?local=1

@@ -131,14 +131,51 @@ module.exports = function (grunt) {
 				},
 			},
 		},
+		exec: {
+			remove_dev_npm_modules: {
+				command: 'rm -rf node_modules/nodebb-theme-indiloop'
+			},
+			install_dev_npm_modules: {
+				command: 'npm install ../indiloop_forum_theme'
+			},
+			build_dev_npm_modules: {
+				command: 'npm build ../indiloop_forum_theme'
+			},
+			nodebb_build: {
+				command: './nodebb build'
+			},
+			nodebb_stop: {
+				command: './nodebb stop'
+			},
+			nodebb_stop_force: {
+				command: 'grunt exec:nodebb_stop --force'
+			},
+			nodebb_start: {
+				command: './nodebb start'
+			},
+			nodebb_dev: {
+				command: './nodebb dev'
+			}
+		}
 	});
 
 	grunt.loadNpmTasks('grunt-contrib-watch');
+	grunt.loadNpmTasks('grunt-exec');
 
 	grunt.registerTask('default', ['watch']);
+	grunt.registerTask('update_dev_npm_modules', [
+		'exec:build_dev_npm_modules', 
+		'exec:remove_dev_npm_modules', 
+		'exec:install_dev_npm_modules',
+		'exec:nodebb_stop_force',
+		'exec:nodebb_build',
+		'exec:nodebb_dev'
+		]);
 	env.NODE_ENV = 'development';
 
-	if (grunt.option('skip')) {
+	if (grunt.option('dev')) {
+		// do nothing
+	} else if (grunt.option('skip')) {
 		worker = fork('app.js', args, {
 			env: env,
 		});
