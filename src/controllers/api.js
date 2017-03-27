@@ -61,16 +61,21 @@ apiController.getConfig = function (req, res, next) {
 	config.categoryTopicSort = meta.config.categoryTopicSort || 'newest_to_oldest';
 	config.csrf_token = req.csrfToken();
 	config.searchEnabled = plugins.hasListeners('filter:search.query');
-	config.bootswatchSkin = 'default';
+	config.bootswatchSkin = meta.config.bootswatchSkin || 'noskin';
+	config.defaultBootswatchSkin = meta.config.bootswatchSkin || 'noskin';
+
+	if (config.useOutgoingLinksPage) {
+		config.outgoingLinksWhitelist = meta.config['outgoingLinks:whitelist'];
+	}
 
 	var timeagoCutoff = meta.config.timeagoCutoff === undefined ? 30 : meta.config.timeagoCutoff;
 	config.timeagoCutoff = timeagoCutoff !== '' ? Math.max(0, parseInt(timeagoCutoff, 10)) : timeagoCutoff;
 
 	config.cookies = {
 		enabled: parseInt(meta.config.cookieConsentEnabled, 10) === 1,
-		message: translator.escape(meta.config.cookieConsentMessage || '[[global:cookies.message]]').replace(/\\/g, '\\\\'),
-		dismiss: translator.escape(meta.config.cookieConsentDismiss || '[[global:cookies.accept]]').replace(/\\/g, '\\\\'),
-		link: translator.escape(meta.config.cookieConsentLink || '[[global:cookies.learn_more]]').replace(/\\/g, '\\\\'),
+		message: translator.escape(validator.escape(meta.config.cookieConsentMessage || '[[global:cookies.message]]')).replace(/\\/g, '\\\\'),
+		dismiss: translator.escape(validator.escape(meta.config.cookieConsentDismiss || '[[global:cookies.accept]]')).replace(/\\/g, '\\\\'),
+		link: translator.escape(validator.escape(meta.config.cookieConsentLink || '[[global:cookies.learn_more]]')).replace(/\\/g, '\\\\'),
 	};
 
 	async.waterfall([
@@ -90,7 +95,7 @@ apiController.getConfig = function (req, res, next) {
 			config.categoryTopicSort = settings.categoryTopicSort || config.categoryTopicSort;
 			config.topicSearchEnabled = settings.topicSearchEnabled || false;
 			config.delayImageLoading = settings.delayImageLoading !== undefined ? settings.delayImageLoading : true;
-			config.bootswatchSkin = settings.bootswatchSkin || config.bootswatchSkin;
+			config.bootswatchSkin = (settings.bootswatchSkin && settings.bootswatchSkin !== 'default') ? settings.bootswatchSkin : config.bootswatchSkin;
 			plugins.fireHook('filter:config.get', config, next);
 		},
 	], function (err, config) {

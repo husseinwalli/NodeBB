@@ -2,7 +2,6 @@
 
 var async = require('async');
 var fs = require('fs');
-var nconf = require('nconf');
 var winston = require('winston');
 var request = require('request');
 var mime = require('mime');
@@ -50,12 +49,7 @@ module.exports = function (User) {
 				}, next);
 			},
 			function (image, next) {
-				User.setUserFields(uid, {
-					uploadedpicture: image.url,
-					picture: image.url,
-				}, function (err) {
-					next(err, image);
-				});
+				next(null, image);
 			},
 		], callback);
 	};
@@ -228,7 +222,7 @@ module.exports = function (User) {
 			},
 			function (upload, next) {
 				next(null, {
-					url: nconf.get('relative_path') + upload.url,
+					url: upload.url,
 					path: upload.path,
 					name: image.name,
 				});

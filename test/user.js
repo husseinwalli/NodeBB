@@ -70,6 +70,38 @@ describe('User', function () {
 		});
 	});
 
+	describe('.uniqueUsername()', function () {
+		it('should deal with collisions', function (done) {
+			var users = [];
+			for (var i = 0; i < 10; i += 1) {
+				users.push({
+					username: 'Jane Doe',
+					password: 'abcdefghi',
+					email: 'jane.doe' + i + '@example.com',
+				});
+			}
+
+			async.series([
+				function (next) {
+					async.eachSeries(users, function (user, next) {
+						User.create(user, next);
+					}, next);
+				},
+				function (next) {
+					User.uniqueUsername({
+						username: 'Jane Doe',
+						userslug: 'jane-doe',
+					}, function (err, username) {
+						assert.ifError(err);
+
+						assert.strictEqual(username, 'Jane Doe 9');
+						done();
+					});
+				},
+			], done);
+		});
+	});
+
 	describe('.isModerator()', function () {
 		it('should return false', function (done) {
 			User.isModerator(testUid, testCid, function (err, isModerator) {
@@ -399,19 +431,22 @@ describe('User', function () {
 		});
 
 		it('should change a user\'s password', function (done) {
-			this.timeout(20000);
-			io.emit('user.changePassword', { uid: uid, newPassword: '654321', currentPassword: '123456' }, function (err) {
+			var socketUser = require('../src/socket.io/user');
+			User.create({ username: 'changepassword', password: '123456' }, function (err, uid) {
 				assert.ifError(err);
-				User.isPasswordCorrect(uid, '654321', function (err, correct) {
+				socketUser.changePassword({ uid: uid }, { uid: uid, newPassword: '654321', currentPassword: '123456' }, function (err) {
 					assert.ifError(err);
-					assert(correct);
-					done();
+					User.isPasswordCorrect(uid, '654321', function (err, correct) {
+						assert.ifError(err);
+						assert(correct);
+						done();
+					});
 				});
 			});
 		});
 
 		it('should change username', function (done) {
-			io.emit('user.changeUsernameEmail', { uid: uid, username: 'updatedAgain', password: '654321' }, function (err) {
+			io.emit('user.changeUsernameEmail', { uid: uid, username: 'updatedAgain', password: '123456' }, function (err) {
 				assert.ifError(err);
 				db.getObjectField('user:' + uid, 'username', function (err, username) {
 					assert.ifError(err);
@@ -422,7 +457,7 @@ describe('User', function () {
 		});
 
 		it('should change email', function (done) {
-			io.emit('user.changeUsernameEmail', { uid: uid, email: 'updatedAgain@me.com', password: '654321' }, function (err) {
+			io.emit('user.changeUsernameEmail', { uid: uid, email: 'updatedAgain@me.com', password: '123456' }, function (err) {
 				assert.ifError(err);
 				db.getObjectField('user:' + uid, 'email', function (err, email) {
 					assert.ifError(err);
@@ -522,7 +557,7 @@ describe('User', function () {
 					};
 					User.uploadPicture(uid, picture, function (err, uploadedPicture) {
 						assert.ifError(err);
-						assert.equal(uploadedPicture.url, nconf.get('relative_path') + '/assets/uploads/profile/' + uid + '-profileavatar.png');
+						assert.equal(uploadedPicture.url, '/assets/uploads/profile/' + uid + '-profileavatar.png');
 						assert.equal(uploadedPicture.path, path.join(nconf.get('base_dir'), 'public', 'uploads', 'profile', uid + '-profileavatar.png'));
 						done();
 					});
@@ -1146,6 +1181,45 @@ describe('User', function () {
 						assert.ifError(err);
 						assert.equal(isMember, false);
 						done();
+					});
+				});
+			});
+		});
+	});
+
+	describe('email confirm', function () {
+		it('should error with invalid code', function (done) {
+			User.email.confirm('asdasda', function (err) {
+				assert.equal(err.message, '[[error:invalid-data]]');
+				done();
+			});
+		});
+
+		it('should confirm email of user', function (done) {
+			var email = 'confirm@me.com';
+			User.create({
+				username: 'confirme',
+				email: email,
+			}, function (err, uid) {
+				assert.ifError(err);
+				User.email.sendValidationEmail(uid, email, function (err, code) {
+					assert.ifError(err);
+					User.email.confirm(code, function (err) {
+						assert.ifError(err);
+
+						async.parallel({
+							confirmed: function (next) {
+								db.getObjectField('user:' + uid, 'email:confirmed', next);
+							},
+							isMember: function (next) {
+								db.isSortedSetMember('users:notvalidated', uid, next);
+							},
+						}, function (err, results) {
+							assert.ifError(err);
+							assert.equal(results.confirmed, 1);
+							assert.equal(results.isMember, false);
+							done();
+						});
 					});
 				});
 			});

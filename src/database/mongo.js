@@ -47,13 +47,8 @@
 
 	module.init = function (callback) {
 		callback = callback || function () { };
-		var mongoClient;
-		try {
-			mongoClient = require('mongodb').MongoClient;
-		} catch (err) {
-			winston.error('Unable to initialize MongoDB! Is MongoDB installed? Error :' + err.message);
-			return callback(err);
-		}
+
+		var mongoClient = require('mongodb').MongoClient;
 
 		var usernamePassword = '';
 		if (nconf.get('mongo:username') && nconf.get('mongo:password')) {
@@ -82,12 +77,13 @@
 		var connString = 'mongodb://' + usernamePassword + servers.join() + '/' + nconf.get('mongo:database');
 
 		var connOptions = {
-			server: {
-				poolSize: parseInt(nconf.get('mongo:poolSize'), 10) || 10,
-			},
+			poolSize: 10,
+			reconnectTries: 3600,
+			reconnectInterval: 1000,
+			autoReconnect: true,
 		};
 
-		connOptions = _.deepExtend((nconf.get('mongo:options') || {}), connOptions);
+		connOptions = _.deepExtend(connOptions, nconf.get('mongo:options') || {});
 
 		mongoClient.connect(connString, connOptions, function (err, _db) {
 			if (err) {
@@ -107,10 +103,7 @@
 
 			if (nconf.get('mongo:password') && nconf.get('mongo:username')) {
 				db.authenticate(nconf.get('mongo:username'), nconf.get('mongo:password'), function (err) {
-					if (err) {
-						return callback(err);
-					}
-					callback();
+					callback(err);
 				});
 			} else {
 				winston.warn('You have no mongo password setup!');
